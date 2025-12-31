@@ -1,2 +1,2 @@
 # emvat
-bu bizim dil programlamasıdır
+emvat bir tane programlama dilidir ve türkçedir
