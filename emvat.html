@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>EMVAT IDE</title>
+<style>
+body{
+    margin:0;
+    background:#0f1115;
+    color:#eee;
+    font-family:Consolas, monospace;
+}
+header{
+    text-align:center;
+    padding:15px;
+    font-size:24px;
+    font-weight:bold;
+}
+main{
+    display:flex;
+    height:calc(100vh - 70px);
+}
+textarea{
+    width:50%;
+    padding:10px;
+    border:none;
+    resize:none;
+    font-size:14px;
+}
+#editor{
+    background:#111;
+    color:#0f0;
+}
+#output{
+    background:#000;
+    color:#00ffaa;
+}
+.buttons{
+    position:fixed;
+    top:10px;
+    right:10px;
+}
+button{
+    margin:2px;
+    padding:6px 10px;
+    cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<header>EMVAT PROGRAMLAMA DİLİ – WEB IDE</header>
+
+<div class="buttons">
+    <button onclick="run()">ÇALIŞTIR</button>
+    <button onclick="saveFile()">KAYDET</button>
+    <button onclick="loadFile()">YÜKLE</button>
+    <input type="file" id="file" hidden>
+</div>
+
+<main>
+<textarea id="editor">
+yaz "EMVAT BASLADI"
+
+yaz 2+2
+yaz 3*3
+
+ata x = 5
+ata y = x*3+2
+
+yaz y
+
+eger y > 10
+    yaz y*2
+bitir
+
+tekrar 2
+    yaz "dongu"
+bitir
+</textarea>
+
+<textarea id="output" readonly></textarea>
+</main>
+
+<script>
+let vars = {};
+
+function evalExpr(expr){
+    expr = expr.replace(/[a-zA-Z_]+/g, m => vars[m] ?? 0);
+    try{
+        return Function("return "+expr)();
+    }catch{
+        return 0;
+    }
+}
+
+function run(){
+    vars = {};
+    const lines = editor.value.split("\n");
+    let out = [];
+
+    function exec(block){
+        for(let i=0;i<block.length;i++){
+            let line = block[i].trim();
+            if(!line) continue;
+
+            // yaz
+            if(line.startsWith("yaz")){
+                let v = line.slice(4).trim();
+                if(v.startsWith('"')){
+                    out.push(v.slice(1,-1));
+                }else{
+                    out.push(evalExpr(v));
+                }
+            }
+
+            // ata
+            else if(line.startsWith("ata")){
+                let [,name,,expr] = line.split(/ +/);
+                vars[name] = evalExpr(expr);
+            }
+
+            // eger
+            else if(line.startsWith("eger")){
+                let [,l,op,r] = line.split(" ");
+                let ok = op==">" ? evalExpr(l) > evalExpr(r) :
+                         op=="<" ? evalExpr(l) < evalExpr(r) :
+                         evalExpr(l) == evalExpr(r);
+
+                let inner=[];
+                i++;
+                while(block[i].trim()!="bitir"){
+                    inner.push(block[i]);
+                    i++;
+                }
+                if(ok) exec(inner);
+            }
+
+            // tekrar
+            else if(line.startsWith("tekrar")){
+                let count = evalExpr(line.split(" ")[1]);
+                let inner=[];
+                i++;
+                while(block[i].trim()!="bitir"){
+                    inner.push(block[i]);
+                    i++;
+                }
+                for(let k=0;k<count;k++) exec(inner);
+            }
+
+            else{
+                out.push("HATA: "+line);
+            }
+        }
+    }
+
+    exec(lines);
+    output.value = out.join("\n");
+}
+
+function saveFile(){
+    const blob = new Blob([editor.value], {type:"text/plain"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "kod.mv";
+    a.click();
+}
+
+function loadFile(){
+    file.click();
+    file.onchange = ()=>{
+        const f = file.files[0];
+        const r = new FileReader();
+        r.onload = e => editor.value = e.target.result;
+        r.readAsText(f);
+    }
+}
+</script>
+
+</body>
+</html>
